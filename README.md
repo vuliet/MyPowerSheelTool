@@ -1,4 +1,4 @@
 # MyTool
 How to Run:
-  * Run as administrator
+  * Run as administrator ->
   .\CloneProject.ps1
