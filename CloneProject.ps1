@@ -1,17 +1,17 @@
-﻿param (
-    [string]$sourceProjectPath = "D:\MyProject\VNG\Exercise_1_BackgroundJobApp",  # Đường dẫn đến project gốc
-    [string]$destinationProjectPath = "D:\Test",  # Đường dẫn đến project mới
-    [string]$oldNamespace = "Exercise_1_BackgroundJobApp",                 # Namespace cũ
-    [string]$newNamespace = "Exercise_2_BackgroundJobApp"                       # Namespace mới
+param (
+    [string]$sourceProjectPath = "D:\Source\CompanyDemo",  # Path to the original project
+    [string]$destinationProjectPath = "D:\Test",  # Path to the new project
+    [string]$oldNamespace = "CompanyDemo",                 # Old namespace
+    [string]$newNamespace = "CompanyDemo2"                       # New namespace
 )
 
-# 1. Kiểm tra nếu thư mục dự án mới đã tồn tại
+# 1. Check if the destination project folder already exists
 if (Test-Path -Path $destinationProjectPath) {
-    Write-Host "Thư mục đích đã tồn tại. Xóa thư mục cũ trước khi sao chép."
+    Write-Host "The destination folder already exists. Deleting the old folder before copying."
     Remove-Item -Recurse -Force $destinationProjectPath
 }
 
-# 2. Lọc các thư mục cần loại trừ khi sao chép
+# 2. Exclude folders when copying
 $excludeFolders = @('bin', 'obj', '.git', '.vs')
 
 function Copy-Project {
@@ -20,11 +20,11 @@ function Copy-Project {
         [string]$destination
     )
 
-    # Lấy danh sách các thư mục và tệp
+    # Get list of directories and files
     Get-ChildItem -Path $source -Recurse | ForEach-Object {
         $relativePath = $_.FullName.Substring($source.Length)
 
-        # Kiểm tra xem đối tượng hiện tại có nằm trong thư mục bị loại trừ không
+        # Check if the current item is in an excluded folder
         $shouldExclude = $false
         foreach ($excludeFolder in $excludeFolders) {
             if ($_.FullName -like "*\$excludeFolder\*" -or $_.Name -in $excludeFolders) {
@@ -37,22 +37,22 @@ function Copy-Project {
             $destPath = Join-Path $destination $relativePath
 
             if ($_.PSIsContainer) {
-                # Nếu là thư mục, tạo thư mục tại điểm đích
+                # If it's a folder, create the folder at the destination
                 if (-not (Test-Path -Path $destPath)) {
                     New-Item -Path $destPath -ItemType Directory
                 }
             } else {
-                # Nếu là tệp, sao chép tệp sang đích
+                # If it's a file, copy the file to the destination
                 Copy-Item -Path $_.FullName -Destination $destPath
             }
         }
     }
 }
 
-# 3. Sao chép dự án, bỏ qua các thư mục được loại trừ
+# 3. Copy the project, excluding the excluded folders
 Copy-Project -source $sourceProjectPath -destination $destinationProjectPath
 
-# 4. Đổi tên file solution và project
+# 4. Rename solution and project files
 $oldSolutionFile = Get-ChildItem -Path $destinationProjectPath -Filter "*.sln"
 $oldProjectFile = Get-ChildItem -Path $destinationProjectPath -Filter "*.csproj"
 
@@ -66,11 +66,9 @@ if ($oldProjectFile) {
     Rename-Item -Path $oldProjectFile.FullName -NewName (Split-Path $newProjectFile -Leaf)
 }
 
-# 5. Thay thế namespace trong tất cả các file .cs, .csproj, .sln, .config
+# 5. Replace namespace in all .cs, .csproj, .sln, .config files
 Get-ChildItem -Path $destinationProjectPath -Recurse -Include *.cs,*.csproj,*.sln,*.config,*.xml | ForEach-Object {
     (Get-Content -Path $_.FullName) -replace $oldNamespace, $newNamespace | Set-Content -Path $_.FullName
 }
 
-Write-Host "Dự án đã được sao chép và namespace đã được đổi từ $oldNamespace sang $newNamespace."
-
-
+Write-Host "The project has been copied and the namespace has been changed from $oldNamespace to $newNamespace."
